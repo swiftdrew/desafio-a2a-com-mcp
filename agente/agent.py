@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 import threading
+from contextlib import AsyncExitStack
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -21,8 +22,10 @@ TERMINAIS = {"TASK_STATE_COMPLETED", "TASK_STATE_CANCELED", "TASK_STATE_FAILED"}
 
 TASKS: dict[str, dict[str, Any]] = {}
 CLIENT: Client | None = None
+STACK: AsyncExitStack | None = None
 LOOP: asyncio.AbstractEventLoop | None = None
 PRONTO = threading.Event()
+CONEXAO = asyncio.Lock()
 
 # Descoberta em runtime: preenchidas pelo primeiro tools/list, nunca hardcoded.
 TOOLS: set[str] = set()
@@ -123,11 +126,10 @@ def reservar(
     input_responses: dict[str, Any] | None = None,
     request_state: str | None = None,
 ) -> Any:
-    assert CLIENT is not None
     if "reservar_sala" not in TOOLS:
         raise RuntimeError("reservar_sala nao foi descoberta")
     return submit(
-        CLIENT.session.call_tool(
+        lambda s: s.call_tool(
             "reservar_sala",
             args,
             input_responses=input_responses,
