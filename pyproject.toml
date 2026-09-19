@@ -9,6 +9,8 @@ description = "Agente A2A deterministico com servidor MCP de salas"
 requires-python = ">=3.10"
 dependencies = [
   "mcp==2.2.0",
+  "starlette==1.6.0",
+  "uvicorn==0.53.0",
 ]
 
 [tool.setuptools]
