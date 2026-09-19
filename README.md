@@ -492,7 +492,9 @@ e publica `/.well-known/agent-card.json`.
 
 ## Onde a ponte acontece
 
-Em `agente/agent.py`, `process_mcp()` converte `resultType=input_required` em
+O servidor ativo usa o SDK oficial `mcp==2.2.0` em `servidor-mcp/sdk_server.py`;
+`servidor-mcp/server.py` é o entrypoint. Em `agente/agent.py`,
+`process_mcp()` converte `resultType=input_required` em
 `TASK_STATE_INPUT_REQUIRED`, preservando a chave e o `requestState` associados
 à Task. `continue_task()` transforma `escolha=<id>` em `inputResponses` e
 envia um novo `tools/call` com o `requestState` ecoado sem interpretá-lo.
@@ -513,7 +515,7 @@ request MCP.
 Última execução, iniciada com os dois processos do zero:
 
 ```text
-trace-id desta execucao: ac17293cc343fb10122596ea7cba5023
+trace-id desta execucao: 77c98bdf65e6536e6992366a6e28051f
 procure esse valor no stderr do servidor MCP para conferir a propagacao do traceparent.
 
 PASS 01 tools/list traz as tres tools

@@ -213,5 +213,6 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(raw))); self.end_headers(); self.wfile.write(raw)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("MCP_PORT", "7301"))
-    ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+    from sdk_server import run
+
+    run()
