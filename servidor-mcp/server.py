@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ from pydantic import BaseModel, ConfigDict
 from starlette.types import Receive, Scope, Send
 
 ROOT = Path(__file__).resolve().parents[1]
+SAO_PAULO = timezone(timedelta(hours=-3))
 SECRET = os.environ.get("REQUEST_STATE_SECRET", "")
 if len(SECRET.encode()) < 32:
     raise SystemExit(
@@ -75,7 +76,9 @@ def room(room_id: str) -> dict[str, Any] | None:
 
 
 def parse_time(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+    """Devolve sempre um instante com fuso; sem offset explicito, assume -03:00."""
+    momento = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return momento if momento.tzinfo else momento.replace(tzinfo=SAO_PAULO)
 
 
 def validate(args: dict[str, Any]) -> str | None:
@@ -87,7 +90,9 @@ def validate(args: dict[str, Any]) -> str | None:
         return ERRO_INTERVALO
     if end <= start:
         return ERRO_INTERVALO
-    if start.hour < 8 or end.hour > 20 or (end.hour == 20 and end.minute > 0):
+    # A janela da politica e horario de Sao Paulo, qualquer que seja o offset recebido.
+    abertura, fechamento = start.astimezone(SAO_PAULO), end.astimezone(SAO_PAULO)
+    if abertura.hour < 8 or (fechamento.hour, fechamento.minute, fechamento.second) > (20, 0, 0):
         return ERRO_JANELA
     if end - start > timedelta(hours=2):
         return ERRO_DURACAO

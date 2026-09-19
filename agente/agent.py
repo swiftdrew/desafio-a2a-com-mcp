@@ -41,21 +41,60 @@ async def _never_called(*_args: Any, **_kwargs: Any) -> Any:
 
 
 def _loop_thread() -> None:
-    async def main() -> None:
-        global CLIENT, LOOP
-        LOOP = asyncio.get_running_loop()
-        async with Client(MCP_URL, elicitation_callback=_never_called) as client:
-            CLIENT = client
-            PRONTO.set()
-            await asyncio.Event().wait()
+    """Loop de eventos proprio, vivo enquanto o processo viver.
 
-    asyncio.run(main())
+    A vida do loop nao pode depender da conexao MCP: se a conexao cair, o loop
+    sobrevive e a proxima chamada reconecta.
+    """
+    global LOOP
+    LOOP = asyncio.new_event_loop()
+    asyncio.set_event_loop(LOOP)
+    PRONTO.set()
+    LOOP.run_forever()
 
 
-def submit(coro: Any) -> Any:
+async def _abrir_client() -> Client:
+    """Conecta preguicosamente e reaproveita o mesmo objeto cliente entre chamadas."""
+    global CLIENT, STACK
+    if CLIENT is None:
+        stack = AsyncExitStack()
+        CLIENT = await stack.enter_async_context(
+            Client(MCP_URL, elicitation_callback=_never_called)
+        )
+        STACK = stack
+    return CLIENT
+
+
+async def _descartar_client() -> None:
+    global CLIENT, STACK
+    stack, CLIENT, STACK = STACK, None, None
+    if stack is not None:
+        try:
+            await stack.aclose()
+        except Exception:
+            pass
+
+
+async def _executar(acao: Any, reconectar: bool = True) -> Any:
+    async with CONEXAO:
+        client = await _abrir_client()
+        try:
+            return await acao(client.session)
+        except MCPError:
+            # Erro de protocolo: a conexao esta sa, quem errou foi o request.
+            raise
+        except Exception:
+            if not reconectar:
+                raise
+            await _descartar_client()
+    return await _executar(acao, reconectar=False)
+
+
+def submit(acao: Any) -> Any:
+    """Roda `acao(session)` no loop do agente, a partir da thread do servidor A2A."""
     PRONTO.wait(30)
     assert LOOP is not None
-    return asyncio.run_coroutine_threadsafe(coro, LOOP).result(30)
+    return asyncio.run_coroutine_threadsafe(_executar(acao), LOOP).result(60)
 
 
 def meta_de(traceparent: str | None) -> dict[str, Any] | None:
@@ -68,13 +107,12 @@ def descobrir(traceparent: str | None) -> None:
     with DESCOBERTA:
         if TOOLS and POLICY_VERSION:
             return
-        assert CLIENT is not None
         params = mcp_types.PaginatedRequestParams(_meta=meta_de(traceparent))
-        listadas = submit(CLIENT.session.list_tools(params=params))
+        listadas = submit(lambda s: s.list_tools(params=params))
         TOOLS.update(tool.name for tool in listadas.tools)
         if not {"listar_salas", "consultar_disponibilidade", "reservar_sala"} <= TOOLS:
             raise RuntimeError("servidor MCP nao publicou as tres tools")
-        recurso = submit(CLIENT.session.read_resource("politica://uso", meta=meta_de(traceparent)))
+        recurso = submit(lambda s: s.read_resource("politica://uso", meta=meta_de(traceparent)))
         texto = getattr(recurso.contents[0], "text", "") or ""
         POLICY_VERSION = texto.splitlines()[0].split(":", 1)[1].strip()
 

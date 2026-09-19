@@ -119,7 +119,7 @@ alternativas são todos do servidor MCP.
 ## Saída do validador
 
 ```
-trace-id desta execucao: d846652892aff6c9a4f8c3682bd88900
+trace-id desta execucao: e146bf54990192de554f610826d1a07f
 procure esse valor no stderr do servidor MCP para conferir a propagacao do traceparent.
 
 PASS 01 tools/list traz as tres tools
