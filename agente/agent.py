@@ -239,17 +239,30 @@ def continue_task(task: dict[str, Any], text: str) -> dict[str, Any]:
 
 AGENT_CARD = {
     "name": "Central de Salas",
-    "description": "Agente de reservas de salas de reuniao da Hill Valley Tech.",
-    "url": BASE_URL,
+    "description": "Reserva salas de reuniao da Hill Valley Tech.",
+    "provider": {"organization": "Hill Valley Tech", "url": "https://hillvalley.example"},
     "version": "1.0.0",
     "supportedInterfaces": [
         {"url": f"{BASE_URL}/a2a", "protocolBinding": "JSONRPC", "protocolVersion": "1.0"}
     ],
-    "capabilities": {},
+    "capabilities": {
+        "streaming": False,
+        "pushNotifications": False,
+        "extendedAgentCard": False,
+    },
+    "defaultInputModes": ["text/plain"],
+    "defaultOutputModes": ["text/plain"],
     "skills": [{
         "id": "reservar-sala",
         "name": "Reservar sala",
-        "description": "Reserva salas de reuniao respeitando a politica de uso.",
+        "description": "Reserva uma sala em um intervalo. Se houver conflito, pergunta qual alternativa usar.",
+        "tags": ["salas", "agenda"],
+        "inputModes": ["text/plain"],
+        "outputModes": ["text/plain"],
+        "examples": [
+            "reservar sala=sala-garagem inicio=2026-11-03T14:00:00-03:00 "
+            "fim=2026-11-03T15:00:00-03:00 responsavel=Marty"
+        ],
     }],
 }
 
